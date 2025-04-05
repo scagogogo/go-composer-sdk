@@ -1,0 +1,86 @@
+# Go相关忽略
+# 编译生成的二进制文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试二进制文件
+*.test
+
+# 输出的性能分析文件
+*.prof
+
+# 覆盖率结果
+*.out
+*.cover
+cover.html
+
+# Go工具链生成的文件
+.DS_Store
+*.[56789ao]
+*.a
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+# IDE和编辑器相关
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.atom/
+.eclipse/
+.settings/
+*.swp
+*.swo
+*~
+
+# 依赖目录
+/vendor/
+/Godeps/
+
+# 环境变量和配置文件
+.env
+.env.local
+.env.*.local
+config.local.yaml
+secrets.yaml
+
+# 构建目录
+/bin/
+/dist/
+/build/
+
+# 日志文件
+*.log
+logs/
+
+# 临时目录
+/tmp/
+/temp/
+
+# macOS相关
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows相关
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux相关
+*~
+.directory
+.Trash-*
+
+# 特定于项目的文件
+# composer相关
+composer.phar
+/composer/ 
