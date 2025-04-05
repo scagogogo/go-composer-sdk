@@ -448,3 +448,24 @@ func (c *Composer) GetWorkingDir() string {
 func (c *Composer) GetEnv() []string {
 	return c.env
 }
+
+// IsInstalled 检查Composer是否已安装
+//
+// 返回值：
+//   - bool: 如果Composer已安装，则返回true；否则返回false
+//
+// 功能说明：
+//
+//	该方法检查当前Composer实例是否已经有指向有效Composer可执行文件的路径。
+//	它仅检查路径是否存在，不会验证可执行文件是否可正常工作。
+//
+// 用法示例：
+//
+//	if comp.IsInstalled() {
+//	    fmt.Println("Composer已安装")
+//	} else {
+//	    fmt.Println("Composer未安装")
+//	}
+func (c *Composer) IsInstalled() bool {
+	return c.executablePath != ""
+}

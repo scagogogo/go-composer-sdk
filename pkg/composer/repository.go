@@ -616,3 +616,35 @@ func (c *Composer) RemoveGlobalRepository(name string) error {
 func (c *Composer) ListGlobalRepositories() (string, error) {
 	return c.Run("config", "--global", "repositories")
 }
+
+// SetPreferStable 设置是否优先使用稳定版本包
+//
+// 参数：
+//   - preferStable: 是否优先使用稳定版本，true表示优先使用稳定版本
+//
+// 返回值：
+//   - error: 如果设置prefer-stable过程中发生错误，则返回相应的错误信息
+//
+// 功能说明：
+//
+//	该方法设置composer.json中的prefer-stable选项。
+//	如果设置为true，则Composer将优先选择稳定版本的包，即使minimum-stability允许不稳定版本。
+//	相当于执行`composer config prefer-stable <0|1>`
+//
+// 用法示例：
+//
+//	// 设置优先使用稳定版本
+//	err := comp.SetPreferStable(true)
+//	if err != nil {
+//	    log.Fatalf("设置prefer-stable失败: %v", err)
+//	}
+func (c *Composer) SetPreferStable(preferStable bool) error {
+	value := "0"
+	if preferStable {
+		value = "1"
+	}
+
+	args := []string{"config", "prefer-stable", value}
+	_, err := c.Run(args...)
+	return err
+}

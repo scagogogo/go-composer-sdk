@@ -20,6 +20,7 @@ func main() {
 		{"2.1", "包管理 - 安装和更新包", package_management.Example01InstallUpdate},
 		{"2.2", "包管理 - 添加和移除包", package_management.Example02RequireRemove},
 		{"2.3", "包管理 - 查看包信息", package_management.Example03ShowPackage},
+		{"2.4", "包管理 - 搜索包", package_management.Example04SearchPackage},
 		{"3.1", "项目管理 - 创建项目", project_management.Example01CreateProject},
 		{"3.2", "项目管理 - 运行脚本", project_management.Example02RunScript},
 		{"3.3", "项目管理 - 平台需求检查", project_management.Example03PlatformCheck},
