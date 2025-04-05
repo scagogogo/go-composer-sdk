@@ -33,13 +33,27 @@ var (
 	ErrGetComposerHome      = errors.New("获取Composer主目录失败")
 )
 
-// mockCommandOutput stores predefined outputs for different commands
+// mockCommandOutput 存储不同命令的预定义输出，用于测试目的
 var mockCommandOutput = map[string]struct {
 	output string
 	err    error
 }{}
 
-// SetupMockOutput sets up mock output for a specific command
+// SetupMockOutput 为特定命令设置模拟输出
+//
+// 参数：
+//   - command: 需要模拟的命令字符串
+//   - output: 模拟的命令输出
+//   - err: 模拟的错误信息
+//
+// 功能说明：
+//
+//	该方法用于测试目的，可以为特定的Composer命令设置预定义的输出和错误信息。
+//	这样在单元测试中可以模拟命令执行而不需要实际执行Composer命令。
+//
+// 用法示例：
+//
+//	composer.SetupMockOutput("composer require", "Package operations: 1 install, 0 updates, 0 removals", nil)
 func SetupMockOutput(command string, output string, err error) {
 	mockCommandOutput[command] = struct {
 		output string
@@ -50,7 +64,16 @@ func SetupMockOutput(command string, output string, err error) {
 	}
 }
 
-// ClearMockOutputs clears all mock outputs
+// ClearMockOutputs 清除所有模拟输出
+//
+// 功能说明：
+//
+//	该方法用于清除之前通过SetupMockOutput设置的所有模拟输出。
+//	通常在测试前后使用，以确保测试环境的干净。
+//
+// 用法示例：
+//
+//	composer.ClearMockOutputs()
 func ClearMockOutputs() {
 	mockCommandOutput = map[string]struct {
 		output string
@@ -58,7 +81,7 @@ func ClearMockOutputs() {
 	}{}
 }
 
-// getMockOutput returns mock output for a command if it exists
+// getMockOutput 如果存在模拟输出，则返回命令的模拟输出
 func getMockOutput(args ...string) (string, error, bool) {
 	if len(args) == 0 {
 		return "", nil, false
@@ -119,6 +142,22 @@ type Options struct {
 }
 
 // DefaultOptions 返回默认选项
+//
+// 返回值：
+//   - Options: 包含默认配置的选项结构体
+//
+// 功能说明：
+//
+//	该方法返回Composer实例的默认配置选项。
+//	默认配置包括：
+//	- 使用当前目录作为工作目录
+//	- 自动安装Composer（如果未找到）
+//	- 10分钟的默认超时时间
+//
+// 用法示例：
+//
+//	options := composer.DefaultOptions()
+//	comp, err := composer.New(options)
 func DefaultOptions() Options {
 	return Options{
 		WorkingDir:     "",
@@ -128,6 +167,28 @@ func DefaultOptions() Options {
 }
 
 // New 创建一个新的Composer实例
+//
+// 参数：
+//   - options: 自定义Composer实例的选项
+//
+// 返回值：
+//   - *Composer: 创建的Composer实例
+//   - error: 如果创建过程中发生错误，则返回相应的错误信息
+//
+// 功能说明：
+//
+//	该方法会创建一个新的Composer实例。如果未指定可执行文件路径，它会尝试
+//	检测系统中已安装的Composer。如果未找到且autoInstall设置为true，则会
+//	尝试自动安装Composer。
+//
+// 用法示例：
+//
+//	options := composer.DefaultOptions()
+//	options.WorkingDir = "/path/to/project"
+//	comp, err := composer.New(options)
+//	if err != nil {
+//	    log.Fatalf("初始化Composer失败: %v", err)
+//	}
 func New(options Options) (*Composer, error) {
 	c := &Composer{
 		executablePath: options.ExecutablePath,
@@ -175,54 +236,215 @@ func New(options Options) (*Composer, error) {
 }
 
 // SetWorkingDir 设置composer命令的工作目录
+//
+// 参数：
+//   - dir: 要设置的工作目录路径
+//
+// 功能说明：
+//
+//	该方法用于设置Composer操作的工作目录。所有Composer命令将在此目录下执行。
+//	适用于在不同的项目目录之间切换时使用。
+//
+// 用法示例：
+//
+//	comp.SetWorkingDir("/path/to/php/project")
 func (c *Composer) SetWorkingDir(dir string) {
 	c.workingDir = dir
 }
 
 // SetEnv 设置环境变量
+//
+// 参数：
+//   - env: 环境变量数组，格式为["KEY=VALUE", ...]
+//
+// 功能说明：
+//
+//	该方法用于设置执行Composer命令时的环境变量。
+//	可以用来配置HTTP代理、身份验证信息或其他影响Composer行为的环境变量。
+//
+// 用法示例：
+//
+//	// 设置HTTP代理
+//	comp.SetEnv([]string{
+//	    "HTTP_PROXY=http://proxy.example.com:8080",
+//	    "HTTPS_PROXY=http://proxy.example.com:8080",
+//	    "COMPOSER_HOME=/custom/composer/home"
+//	})
 func (c *Composer) SetEnv(env []string) {
 	c.env = env
 }
 
-// GetExecutablePath 获取composer可执行文件的路径
-func (c *Composer) GetExecutablePath() string {
-	return c.executablePath
+// Run 执行composer命令并返回输出
+//
+// 参数：
+//   - args: 命令参数，第一个参数是composer子命令
+//
+// 返回值：
+//   - string: 命令的标准输出
+//   - error: 如果命令执行失败，则返回相应的错误信息
+//
+// 功能说明：
+//
+//	该方法是SDK的核心方法，用于执行任意Composer命令。
+//	它会调用系统上的Composer可执行文件，并传递指定的参数。
+//	默认使用10分钟的超时时间。
+//
+// 用法示例：
+//
+//	// 执行"composer show"命令
+//	output, err := comp.Run("show")
+//	if err != nil {
+//	    log.Fatalf("执行命令失败: %v", err)
+//	}
+//	fmt.Println(output)
+//
+//	// 执行带参数的命令
+//	output, err = comp.Run("require", "symfony/console", "--dev")
+func (c *Composer) Run(args ...string) (string, error) {
+	return c.RunWithTimeout(c.defaultTimeout, args...)
 }
 
-// Run 执行composer命令并返回输出
-func (c *Composer) Run(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.defaultTimeout)
+// RunWithTimeout 在指定超时时间内执行composer命令
+//
+// 参数：
+//   - timeout: 命令执行的最大超时时间
+//   - args: 命令参数，第一个参数是composer子命令
+//
+// 返回值：
+//   - string: 命令的标准输出
+//   - error: 如果命令执行失败或超时，则返回相应的错误信息
+//
+// 功能说明：
+//
+//	该方法与Run类似，但允许指定自定义的超时时间。
+//	对于可能长时间运行的命令特别有用。
+//
+// 用法示例：
+//
+//	// 执行可能需要很长时间的安装命令，设置30分钟超时
+//	output, err := comp.RunWithTimeout(30*time.Minute, "install")
+//	if err != nil {
+//	    log.Fatalf("安装超时或失败: %v", err)
+//	}
+func (c *Composer) RunWithTimeout(timeout time.Duration, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-
 	return c.RunWithContext(ctx, args...)
 }
 
-// RunWithContext 使用指定的上下文执行composer命令并返回输出
+// RunWithContext 在指定上下文中执行composer命令
+//
+// 参数：
+//   - ctx: 上下文，可用于取消或设置超时
+//   - args: 命令参数，第一个参数是composer子命令
+//
+// 返回值：
+//   - string: 命令的标准输出
+//   - error: 如果命令执行失败，则返回相应的错误信息
+//
+// 功能说明：
+//
+//	该方法提供对命令执行的最大控制权，允许使用自定义上下文。
+//	上下文可以用于超时控制、取消执行或传递其他值。
+//
+// 用法示例：
+//
+//	// 创建可以手动取消的上下文
+//	ctx, cancel := context.WithCancel(context.Background())
+//
+//	// 在另一个goroutine中根据条件取消
+//	go func() {
+//	    time.Sleep(5 * time.Second)
+//	    cancel()
+//	}()
+//
+//	// 执行命令
+//	output, err := comp.RunWithContext(ctx, "update")
+//	if err != nil {
+//	    if errors.Is(err, context.Canceled) {
+//	        fmt.Println("命令被取消")
+//	    } else {
+//	        log.Fatalf("执行命令失败: %v", err)
+//	    }
+//	}
 func (c *Composer) RunWithContext(ctx context.Context, args ...string) (string, error) {
-	// 当处于测试模式时，检查是否有模拟输出
+	// 检查是否有模拟输出
 	if output, err, ok := getMockOutput(args...); ok {
 		return output, err
 	}
 
+	// 创建命令
 	cmd := exec.CommandContext(ctx, c.executablePath, args...)
 
+	// 设置工作目录
 	if c.workingDir != "" {
 		cmd.Dir = c.workingDir
 	}
 
+	// 设置环境变量
 	if len(c.env) > 0 {
 		cmd.Env = c.env
 	}
 
-	output, err := cmd.CombinedOutput()
+	// 执行命令并获取输出
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("%w: %v, 输出: %s", ErrCommandExecution, err, output)
+		return string(out), fmt.Errorf("%w: %v, output: %s", ErrCommandExecution, err, string(out))
 	}
 
-	return string(output), nil
+	return string(out), nil
 }
 
-// IsInstalled 检查composer是否已安装
-func (c *Composer) IsInstalled() bool {
-	return c.executablePath != ""
+// GetExecutablePath 获取composer可执行文件的路径
+//
+// 返回值：
+//   - string: composer可执行文件的完整路径
+//
+// 功能说明：
+//
+//	该方法返回Composer实例使用的可执行文件路径。
+//
+// 用法示例：
+//
+//	execPath := comp.GetExecutablePath()
+//	fmt.Printf("使用的Composer可执行文件: %s\n", execPath)
+func (c *Composer) GetExecutablePath() string {
+	return c.executablePath
+}
+
+// GetWorkingDir 获取当前的工作目录
+//
+// 返回值：
+//   - string: 当前设置的工作目录路径
+//
+// 功能说明：
+//
+//	该方法返回Composer实例当前使用的工作目录。
+//
+// 用法示例：
+//
+//	workDir := comp.GetWorkingDir()
+//	fmt.Printf("当前工作目录: %s\n", workDir)
+func (c *Composer) GetWorkingDir() string {
+	return c.workingDir
+}
+
+// GetEnv 获取当前设置的环境变量
+//
+// 返回值：
+//   - []string: 当前设置的环境变量数组
+//
+// 功能说明：
+//
+//	该方法返回Composer实例当前使用的环境变量。
+//
+// 用法示例：
+//
+//	env := comp.GetEnv()
+//	fmt.Println("当前环境变量:")
+//	for _, e := range env {
+//	    fmt.Println(e)
+//	}
+func (c *Composer) GetEnv() []string {
+	return c.env
 }
