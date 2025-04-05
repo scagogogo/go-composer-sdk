@@ -9,12 +9,55 @@ Go Composer SDK 是一个全面的 Go 语言库，提供对 PHP Composer 包管�
 - **全面的功能集**：包含依赖管理、仓库配置、认证、安全审计等功能
 - **多平台支持**：支持 Windows、macOS 和 Linux
 - **模块化设计**：按功能分组的代码结构，易于使用和维护
+- **自动化测试**：使用GitHub Actions自动化测试确保代码质量
 
 ## 安装
 
 ```bash
 go get github.com/scagogogo/go-composer-sdk
 ```
+
+## 开发与测试
+
+### 运行测试
+
+```bash
+# 运行所有测试
+go test -v ./...
+
+# 运行带有race检测的测试
+go test -race -v ./...
+```
+
+### GitHub Actions
+
+本项目使用GitHub Actions进行持续集成，每次提交代码或创建Pull Request时会自动运行测试。GitHub Actions工作流配置位于 `.github/workflows/test.yml`。
+
+工作流程包括：
+- 安装Go依赖
+- 验证依赖关系
+- 运行单元测试
+- 运行带有race检测的测试
+- 运行go vet静态分析
+- 使用golangci-lint进行代码质量检查
+- 构建项目
+
+### 在本地测试GitHub Actions
+
+您可以使用[act](https://github.com/nektos/act)工具在本地测试GitHub Actions工作流：
+
+```bash
+# 安装act (macOS)
+brew install act
+
+# 列出所有可用的actions
+act -l
+
+# 运行测试作业
+act -j test -P ubuntu-latest=golang:1.20 --container-architecture linux/amd64
+```
+
+详细的说明请参考 `.github/act-readme.md` 文件。
 
 ## 快速开始
 
