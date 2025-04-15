@@ -1,0 +1,58 @@
+Vagrant.configure("2") do |config|
+  # 使用Ubuntu 22.04作为基础镜像
+  config.vm.box = "ubuntu/jammy64"
+
+  # 设置虚拟机名称
+  config.vm.hostname = "composer-test"
+
+  # 网络设置
+  config.vm.network "private_network", type: "dhcp"
+
+  # 共享文件夹 - 将项目根目录挂载到VM中
+  config.vm.synced_folder "../../", "/home/vagrant/go-composer-sdk"
+
+  # 虚拟机资源设置
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 2
+    vb.name = "composer-test-vm"
+  end
+
+  # 安装必要的软件
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update
+    apt-get install -y software-properties-common apt-transport-https ca-certificates
+    
+    # 安装PHP
+    add-apt-repository -y ppa:ondrej/php
+    apt-get update
+    apt-get install -y php8.1 php8.1-cli php8.1-common php8.1-curl php8.1-mbstring php8.1-xml php8.1-zip php8.1-json php8.1-opcache php8.1-readline git unzip
+    
+    # 安装Go
+    wget -q https://golang.org/dl/go1.20.3.linux-amd64.tar.gz
+    tar -C /usr/local -xzf go1.20.3.linux-amd64.tar.gz
+    rm go1.20.3.linux-amd64.tar.gz
+    
+    # 添加Go到PATH
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/vagrant/.bashrc
+    
+    # 设置GOPATH
+    mkdir -p /home/vagrant/go/{bin,pkg,src}
+    echo 'export GOPATH=/home/vagrant/go' >> /home/vagrant/.bashrc
+    echo 'export PATH=$PATH:$GOPATH/bin' >> /home/vagrant/.bashrc
+    
+    # 创建必要的目录
+    mkdir -p /home/vagrant/go/src/github.com/scagogogo
+    
+    # 设置项目软链接到GOPATH
+    ln -s /home/vagrant/go-composer-sdk /home/vagrant/go/src/github.com/scagogogo/go-composer-sdk
+    
+    # 提示信息
+    echo "=========================================================="
+    echo "环境设置完成！"
+    echo "可以使用 'vagrant ssh' 登录虚拟机，然后运行测试："
+    echo "cd /home/vagrant/go/src/github.com/scagogogo/go-composer-sdk/tests/docker"
+    echo "go run main.go"
+    echo "=========================================================="
+  SHELL
+end 
