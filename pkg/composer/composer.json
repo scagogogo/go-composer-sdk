@@ -1,5 +1,7 @@
 {
     "config": {
-        "process-timeout": "600"
+        "bin-dir": "bin",
+        "process-timeout": 600,
+        "vendor-dir": "vendor"
     }
 }
