@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -39,6 +40,9 @@ var mockCommandOutput = map[string]struct {
 	err    error
 }{}
 
+// testMode 标识是否处于测试模式，测试模式下会跳过某些验证
+var testMode = false
+
 // SetupMockOutput 为特定命令设置模拟输出
 //
 // 参数：
@@ -55,6 +59,7 @@ var mockCommandOutput = map[string]struct {
 //
 //	composer.SetupMockOutput("composer require", "Package operations: 1 install, 0 updates, 0 removals", nil)
 func SetupMockOutput(command string, output string, err error) {
+	testMode = true // 启用测试模式
 	mockCommandOutput[command] = struct {
 		output string
 		err    error
@@ -75,6 +80,7 @@ func SetupMockOutput(command string, output string, err error) {
 //
 //	composer.ClearMockOutputs()
 func ClearMockOutputs() {
+	testMode = true // 保持测试模式
 	mockCommandOutput = map[string]struct {
 		output string
 		err    error
@@ -230,6 +236,13 @@ func New(options Options) (*Composer, error) {
 			}
 		}
 		c.executablePath = execPath
+	} else {
+		// 如果指定了可执行文件路径，验证文件是否存在（测试模式下跳过）
+		if !testMode {
+			if _, err := os.Stat(c.executablePath); os.IsNotExist(err) {
+				return nil, fmt.Errorf("%w: 指定的可执行文件不存在: %s", ErrComposerNotFound, c.executablePath)
+			}
+		}
 	}
 
 	return c, nil
