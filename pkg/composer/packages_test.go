@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -8,15 +9,16 @@ import (
 )
 
 func TestShowPackage(t *testing.T) {
-	execPath := createMockExecutable(t)
+	// Reset mock outputs before test
+	ClearMockOutputs()
 
-	composer, err := New(Options{ExecutablePath: execPath})
+	// Set up mock output for show command
+	SetupMockOutput("show vendor/package", "Package vendor/package: v1.0.0", nil)
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
 	if err != nil {
 		t.Fatalf("创建Composer实例失败: %v", err)
 	}
-
-	// 扩展模拟可执行文件以支持show命令
-	extendMockScript(t, execPath, "show", "Package vendor/package: v1.0.0")
 
 	output, err := composer.ShowPackage("vendor/package")
 	if err != nil {
@@ -28,16 +30,144 @@ func TestShowPackage(t *testing.T) {
 	}
 }
 
-func TestSearch(t *testing.T) {
-	execPath := createMockExecutable(t)
+func TestShowPackageEdgeCases(t *testing.T) {
+	// 测试空包名
+	ClearMockOutputs()
+	SetupMockOutput("show ", "No package specified", nil)
 
-	composer, err := New(Options{ExecutablePath: execPath})
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
 	if err != nil {
 		t.Fatalf("创建Composer实例失败: %v", err)
 	}
 
-	// 扩展模拟可执行文件以支持search命令
-	extendMockScript(t, execPath, "search", "Found 5 packages matching logger")
+	_, err = composer.ShowPackage("")
+	if err != nil {
+		t.Errorf("空包名ShowPackage执行失败: %v", err)
+	}
+
+	// 测试包含特殊字符的包名
+	ClearMockOutputs()
+	SetupMockOutput("show vendor/package-with_special.chars", "Package vendor/package-with_special.chars\nVersion: 1.0.0", nil)
+
+	_, err = composer.ShowPackage("vendor/package-with_special.chars")
+	if err != nil {
+		t.Errorf("特殊字符包名ShowPackage执行失败: %v", err)
+	}
+
+	// 测试非常长的包名
+	longPackageName := "vendor/" + strings.Repeat("very-long-package-name", 10)
+	ClearMockOutputs()
+	SetupMockOutput("show "+longPackageName, "Package "+longPackageName+"\nVersion: 1.0.0", nil)
+
+	_, err = composer.ShowPackage(longPackageName)
+	if err != nil {
+		t.Errorf("长包名ShowPackage执行失败: %v", err)
+	}
+
+	// 测试包含Unicode字符的包名
+	unicodePackageName := "vendor/包名-with-中文"
+	ClearMockOutputs()
+	SetupMockOutput("show "+unicodePackageName, "Package "+unicodePackageName+"\nVersion: 1.0.0", nil)
+
+	_, err = composer.ShowPackage(unicodePackageName)
+	if err != nil {
+		t.Errorf("Unicode包名ShowPackage执行失败: %v", err)
+	}
+
+	// 测试包含斜杠的包名
+	slashPackageName := "vendor/sub/package"
+	ClearMockOutputs()
+	SetupMockOutput("show "+slashPackageName, "Package "+slashPackageName+"\nVersion: 1.0.0", nil)
+
+	_, err = composer.ShowPackage(slashPackageName)
+	if err != nil {
+		t.Errorf("包含斜杠的包名ShowPackage执行失败: %v", err)
+	}
+}
+
+func TestShowPackageWithErrors(t *testing.T) {
+	ClearMockOutputs()
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	// 测试包不存在的错误
+	SetupMockOutput("show nonexistent/package", "", errors.New("Package nonexistent/package not found"))
+	_, err = composer.ShowPackage("nonexistent/package")
+	if err == nil {
+		t.Error("不存在的包应该返回错误")
+	}
+
+	// 测试网络错误
+	SetupMockOutput("show vendor/package", "", errors.New("Could not fetch package information"))
+	_, err = composer.ShowPackage("vendor/package")
+	if err == nil {
+		t.Error("网络错误应该返回错误")
+	}
+
+	// 测试无效包名格式
+	SetupMockOutput("show invalid-package-name", "", errors.New("Invalid package name"))
+	_, err = composer.ShowPackage("invalid-package-name")
+	if err == nil {
+		t.Error("无效包名格式应该返回错误")
+	}
+
+	// 测试权限错误
+	SetupMockOutput("show private/package", "", errors.New("Access denied to private package"))
+	_, err = composer.ShowPackage("private/package")
+	if err == nil {
+		t.Error("私有包权限错误应该返回错误")
+	}
+
+	// 测试composer.json不存在
+	SetupMockOutput("show vendor/package", "", errors.New("composer.json not found"))
+	_, err = composer.ShowPackage("vendor/package")
+	if err == nil {
+		t.Error("composer.json不存在应该返回错误")
+	}
+}
+
+func TestSearchWithErrors(t *testing.T) {
+	ClearMockOutputs()
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	// 测试搜索失败
+	SetupMockOutput("search nonexistent-term", "", errors.New("Search failed"))
+	_, err = composer.Search("nonexistent-term")
+	if err == nil {
+		t.Error("搜索失败应该返回错误")
+	}
+
+	// 测试网络连接失败
+	SetupMockOutput("search logger", "", errors.New("Network connection failed"))
+	_, err = composer.Search("logger")
+	if err == nil {
+		t.Error("网络连接失败应该返回错误")
+	}
+
+	// 测试API限制错误
+	SetupMockOutput("search popular-package", "", errors.New("API rate limit exceeded"))
+	_, err = composer.Search("popular-package")
+	if err == nil {
+		t.Error("API限制错误应该返回错误")
+	}
+}
+
+func TestSearch(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock output for search command
+	SetupMockOutput("search logger", "Found 5 packages matching logger", nil)
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
 
 	output, err := composer.Search("logger")
 	if err != nil {
@@ -390,5 +520,114 @@ func extendMockScript(t *testing.T, execPath string, command string, output stri
 	err = os.WriteFile(execPath, []byte(strings.Join(lines, "\n")), 0755)
 	if err != nil {
 		t.Fatalf("更新模拟Composer可执行文件失败: %v", err)
+	}
+}
+
+// 测试边界情况和错误处理
+func TestShowPackageWithEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.ShowPackage("")
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestSearchWithEmptyQuery(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.Search("")
+	if err == nil {
+		t.Error("空搜索查询应该返回错误")
+	}
+}
+
+func TestWhyPackageWithEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.WhyPackage("")
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestReinstallWithEmptyPackage(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.Reinstall("")
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestBrowsePackageWithEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.BrowsePackage("")
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestBumpPackagesWithEmptyArray(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.BumpPackages([]string{})
+	if err == nil {
+		t.Error("空包数组应该返回错误")
+	}
+}
+
+func TestRequirePackageWithOptionsAndEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.RequirePackageWithOptions("", "^1.0", map[string]string{})
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestBrowsePackageWithOptionsAndEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.BrowsePackageWithOptions("", map[string]string{})
+	if err == nil {
+		t.Error("空包名应该返回错误")
+	}
+}
+
+func TestWhyNotPackageWithEmptyName(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.WhyNotPackage("", "")
+	if err == nil {
+		t.Error("空包名应该返回错误")
 	}
 }
