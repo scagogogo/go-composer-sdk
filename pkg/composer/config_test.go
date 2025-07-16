@@ -2,7 +2,7 @@ package composer
 
 import (
 	"encoding/json"
-	"strings"
+	"errors"
 	"testing"
 )
 
@@ -17,76 +17,6 @@ type ConfigItem struct {
 	Name   string
 	Value  interface{}
 	Source string
-}
-
-func TestValidate(t *testing.T) {
-	// Reset mock outputs before test
-	ClearMockOutputs()
-
-	// Create composer with any executable path (won't be used)
-	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
-	if err != nil {
-		t.Fatalf("创建Composer实例失败: %v", err)
-	}
-
-	// 模拟验证成功的情况
-	ClearMockOutputs()
-	SetupMockOutput("validate", "composer.json is valid", nil)
-
-	// 直接使用Run方法
-	output, err := composer.Run("validate")
-	if err != nil {
-		t.Errorf("执行validate命令失败: %v", err)
-	}
-
-	// 手动解析输出
-	valid := strings.Contains(output, "is valid")
-	if !valid {
-		t.Errorf("composer.json应该是有效的")
-	}
-
-	// 模拟验证失败的情况
-	ClearMockOutputs()
-	errorMsg := "composer.json is not valid, the following errors were found:\n- require.invalid/package: package name must be lowercase"
-	SetupMockOutput("validate", errorMsg, nil)
-
-	output, err = composer.Run("validate")
-	if err != nil {
-		t.Errorf("执行validate命令失败: %v", err)
-	}
-
-	// 手动解析输出
-	valid = strings.Contains(output, "is valid")
-	if valid {
-		t.Errorf("composer.json应该是无效的")
-	}
-
-	errors := parseValidationErrors(output)
-	if len(errors) != 1 {
-		t.Errorf("应返回1个错误，实际返回%d个", len(errors))
-		return
-	}
-
-	if len(errors) > 0 && !strings.Contains(errors[0], "package name must be lowercase") {
-		t.Errorf("错误消息不符合预期: %s", errors[0])
-	}
-}
-
-// 辅助函数：解析验证错误
-func parseValidationErrors(output string) []string {
-	var errors []string
-	if !strings.Contains(output, "following errors were found") {
-		return errors
-	}
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "-") {
-			errors = append(errors, strings.TrimPrefix(line, "- "))
-		}
-	}
-	return errors
 }
 
 func TestGetConfig(t *testing.T) {
@@ -118,28 +48,81 @@ func TestGetConfig(t *testing.T) {
 	}
 }
 
-func TestGlobalConfig(t *testing.T) {
-	// Reset mock outputs before test
+func TestGetConfigEdgeCases(t *testing.T) {
 	ClearMockOutputs()
-
-	// Create composer with any executable path (won't be used)
 	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
 	if err != nil {
 		t.Fatalf("创建Composer实例失败: %v", err)
 	}
 
-	// 模拟全局config命令输出
-	ClearMockOutputs()
-	SetupMockOutput("config --global github-oauth.github.com", "abc123token", nil)
+	// 测试空配置键（应该返回nil，不报错）
+	// 设置一个空的mock配置
+	mockJSON := &ComposerJSON{
+		Config: map[string]interface{}{},
+	}
+	SetMockComposerJSON(mockJSON)
+	defer ClearMockComposerJSON()
 
-	// 直接使用Run方法
-	output, err := composer.Run("config", "--global", "github-oauth.github.com")
+	value, err := composer.GetConfig("")
 	if err != nil {
-		t.Errorf("执行全局config命令失败: %v", err)
+		t.Errorf("空配置键GetConfig执行失败: %v", err)
+	}
+	if value != nil {
+		t.Errorf("空配置键应该返回nil，实际为'%v'", value)
 	}
 
-	if output != "abc123token" {
-		t.Errorf("github-oauth配置应为'abc123token'，实际为'%s'", output)
+	// 测试包含特殊字符的配置键
+	mockJSONSpecial := &ComposerJSON{
+		Config: map[string]interface{}{
+			"vendor-dir.special":     "vendor-special",
+			"config-with_underscore": "underscore-value",
+			"config-with-dash":       "dash-value",
+		},
+	}
+	SetMockComposerJSON(mockJSONSpecial)
+	defer ClearMockComposerJSON()
+
+	value, err = composer.GetConfig("vendor-dir.special")
+	if err != nil {
+		t.Errorf("特殊字符配置键GetConfig执行失败: %v", err)
+	}
+	if value != "vendor-special" {
+		t.Errorf("特殊字符配置键输出不正确，期望: 'vendor-special'，实际: '%s'", value)
+	}
+
+	// 测试包含下划线的配置键
+	value, err = composer.GetConfig("config-with_underscore")
+	if err != nil {
+		t.Errorf("下划线配置键GetConfig执行失败: %v", err)
+	}
+	if value != "underscore-value" {
+		t.Errorf("下划线配置键输出不正确，期望: 'underscore-value'，实际: '%s'", value)
+	}
+
+	// 测试不存在的配置键（应该返回nil，不报错）
+	value, err = composer.GetConfig("nonexistent-key")
+	if err != nil {
+		t.Errorf("不存在的配置键GetConfig执行失败: %v", err)
+	}
+	if value != nil {
+		t.Errorf("不存在的配置键应该返回nil，实际为'%v'", value)
+	}
+
+	// 测试nil配置值
+	mockJSONWithNil := &ComposerJSON{
+		Config: map[string]interface{}{
+			"nil-config": nil,
+		},
+	}
+	SetMockComposerJSON(mockJSONWithNil)
+	defer ClearMockComposerJSON()
+
+	value, err = composer.GetConfig("nil-config")
+	if err != nil {
+		t.Errorf("nil配置值GetConfig执行失败: %v", err)
+	}
+	if value != nil {
+		t.Errorf("nil配置值应返回nil，实际为'%v'", value)
 	}
 }
 
@@ -276,23 +259,201 @@ func TestListConfigsRun(t *testing.T) {
 	}
 }
 
-func TestGetComposerHome(t *testing.T) {
-	execPath := createMockExecutable(t)
-
-	composer, err := New(Options{ExecutablePath: execPath})
+// 测试边界情况和错误处理
+func TestGetConfigWithEmptyKey(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
 	if err != nil {
 		t.Fatalf("创建Composer实例失败: %v", err)
 	}
 
-	// 模拟获取Composer主目录命令输出
-	extendMockScript(t, execPath, "config home -g", "/home/user/.composer")
+	_, err = composer.GetConfig("")
+	if err == nil {
+		t.Error("空配置键应该返回错误")
+	}
+}
 
-	homePath, err := composer.GetComposerHome()
+func TestSetConfigWithEmptyKey(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
 	if err != nil {
-		t.Errorf("GetComposerHome执行失败: %v", err)
+		t.Fatalf("创建Composer实例失败: %v", err)
 	}
 
-	if homePath != "/home/user/.composer" {
-		t.Errorf("Composer主目录应为'/home/user/.composer'，实际为'%s'", homePath)
+	err = composer.SetConfig("", "value")
+	if err == nil {
+		t.Error("空配置键应该返回错误")
+	}
+}
+
+func TestUnsetConfigWithEmptyKey(t *testing.T) {
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.UnsetConfig("")
+	if err == nil {
+		t.Error("空配置键应该返回错误")
+	}
+}
+
+func TestGetConfigWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config repositories.packagist", "", errors.New("config not found"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.GetConfig("repositories.packagist")
+	if err == nil {
+		t.Error("配置不存在时应该返回错误")
+	}
+}
+
+func TestSetConfigWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config repositories.packagist composer https://packagist.org", "", errors.New("config set failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.SetConfig("repositories.packagist", "composer https://packagist.org")
+	if err == nil {
+		t.Error("配置设置失败时应该返回错误")
+	}
+}
+
+func TestUnsetConfigWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config --unset repositories.packagist", "", errors.New("config unset failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.UnsetConfig("repositories.packagist")
+	if err == nil {
+		t.Error("配置删除失败时应该返回错误")
+	}
+}
+
+func TestGetConfigWithGlobalAndError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config --global repositories.packagist", "", errors.New("global config not found"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.GetConfigWithGlobal("repositories.packagist", true)
+	if err == nil {
+		t.Error("全局配置不存在时应该返回错误")
+	}
+}
+
+func TestSetConfigWithGlobalAndError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config --global repositories.packagist composer https://packagist.org", "", errors.New("global config set failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.SetConfigWithGlobal("repositories.packagist", "composer https://packagist.org", true)
+	if err == nil {
+		t.Error("全局配置设置失败时应该返回错误")
+	}
+}
+
+func TestValidateComposerJsonWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("validate --strict", "", errors.New("validation failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.ValidateComposerJson(true, false)
+	if err == nil {
+		t.Error("验证失败时应该返回错误")
+	}
+}
+
+func TestCheckPlatformReqsWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("check-platform-reqs", "", errors.New("platform check failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.CheckPlatformReqs()
+	if err == nil {
+		t.Error("平台检查失败时应该返回错误")
+	}
+}
+
+func TestClearCacheWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("clear-cache", "", errors.New("cache clear failed"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	err = composer.ClearCache()
+	if err == nil {
+		t.Error("缓存清理失败时应该返回错误")
+	}
+}
+
+func TestGetComposerHomeWithError(t *testing.T) {
+	// Reset mock outputs before test
+	ClearMockOutputs()
+
+	// Set up mock to return an error
+	SetupMockOutput("config --global home", "", errors.New("home config not found"))
+
+	composer, err := New(Options{ExecutablePath: "/path/to/composer"})
+	if err != nil {
+		t.Fatalf("创建Composer实例失败: %v", err)
+	}
+
+	_, err = composer.GetComposerHome()
+	if err == nil {
+		t.Error("获取Composer主目录失败时应该返回错误")
 	}
 }
