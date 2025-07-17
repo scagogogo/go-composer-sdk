@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/scagogogo/go-composer-sdk/pkg/detector"
@@ -40,6 +41,9 @@ var mockCommandOutput = map[string]struct {
 	err    error
 }{}
 
+// mockMutexSimple 保护mockCommandOutput的并发访问
+var mockMutexSimple sync.RWMutex
+
 // testMode 标识是否处于测试模式，测试模式下会跳过某些验证
 var testMode = false
 
@@ -59,6 +63,8 @@ var testMode = false
 //
 //	composer.SetupMockOutput("composer require", "Package operations: 1 install, 0 updates, 0 removals", nil)
 func SetupMockOutput(command string, output string, err error) {
+	mockMutexSimple.Lock()
+	defer mockMutexSimple.Unlock()
 	testMode = true // 启用测试模式
 	mockCommandOutput[command] = struct {
 		output string
@@ -80,6 +86,8 @@ func SetupMockOutput(command string, output string, err error) {
 //
 //	composer.ClearMockOutputs()
 func ClearMockOutputs() {
+	mockMutexSimple.Lock()
+	defer mockMutexSimple.Unlock()
 	testMode = true // 保持测试模式
 	mockCommandOutput = map[string]struct {
 		output string
@@ -92,6 +100,9 @@ func getMockOutput(args ...string) (string, error, bool) {
 	if len(args) == 0 {
 		return "", nil, false
 	}
+
+	mockMutexSimple.RLock()
+	defer mockMutexSimple.RUnlock()
 
 	// Try to match the exact command
 	cmdStr := args[0]
