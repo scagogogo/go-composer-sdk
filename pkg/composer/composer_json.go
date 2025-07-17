@@ -3,7 +3,6 @@ package composer
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -98,7 +97,7 @@ func (c *Composer) ReadComposerJSON() (*ComposerJSON, error) {
 		return nil, ErrComposerJSONNotFound
 	}
 
-	content, err := ioutil.ReadFile(composerJSONPath)
+	content, err := os.ReadFile(composerJSONPath)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +152,7 @@ func (c *Composer) WriteComposerJSON(composerJSON *ComposerJSON) error {
 
 	// 写入 composer.json 文件
 	composerJSONPath := filepath.Join(workDir, "composer.json")
-	return ioutil.WriteFile(composerJSONPath, content, 0644)
+	return os.WriteFile(composerJSONPath, content, 0644)
 }
 
 // AddRequire 添加依赖到 composer.json

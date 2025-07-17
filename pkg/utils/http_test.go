@@ -43,7 +43,7 @@ func TestDownloadFile(t *testing.T) {
 		} else {
 			// 代理请求处理 - 实际场景中这里会转发请求，但为了测试简单起见，直接返回响应
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Response via proxy"))
+			_, _ = w.Write([]byte("Response via proxy"))
 		}
 	}))
 	defer proxyServer.Close()
@@ -226,7 +226,7 @@ func TestDownloadFileWithProxy(t *testing.T) {
 
 		// 对于HTTP请求，直接返回内容
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("这是从代理服务器返回的内容"))
+		_, _ = w.Write([]byte("这是从代理服务器返回的内容"))
 	}))
 	defer proxyServer.Close()
 
@@ -266,7 +266,7 @@ func TestDownloadFileTimeout(t *testing.T) {
 	delayServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second) // 延迟2秒
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Delayed response"))
+		_, _ = w.Write([]byte("Delayed response"))
 	}))
 	defer delayServer.Close()
 
@@ -304,7 +304,7 @@ func TestDownloadLargeFile(t *testing.T) {
 		// 以1KB的块写入数据
 		chunk := make([]byte, 1024)
 		for i := 0; i < 1024*5; i++ { // 写入5MB数据
-			w.Write(chunk)
+			_, _ = w.Write(chunk)
 			// 刷新以确保数据被发送
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()

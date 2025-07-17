@@ -1,10 +1,7 @@
 package composer
 
 import (
-	"os"
-	"path/filepath"
 	"sync"
-	"testing"
 )
 
 // MockOutput 存储模拟命令的输出和错误
@@ -45,61 +42,3 @@ func GetMockOutput(command string) (MockOutput, bool) {
 }
 
 // createTestComposerLock 创建一个测试用的composer.lock文件
-func createTestComposerLock(t *testing.T, dir string) string {
-	composerLockPath := filepath.Join(dir, "composer.lock")
-
-	content := `{
-    "_readme": [
-        "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies"
-    ],
-    "content-hash": "test-hash",
-    "packages": [
-        {
-            "name": "vendor/package",
-            "version": "v1.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/vendor/package.git",
-                "reference": "abc123"
-            },
-            "require": {
-                "php": ">=7.4"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Vendor\\Package\\": "src/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Package Author",
-                    "email": "author@example.com"
-                }
-            ],
-            "description": "Test package"
-        }
-    ],
-    "packages-dev": [],
-    "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": [],
-    "prefer-stable": false,
-    "prefer-lowest": false,
-    "platform": {
-        "php": ">=7.4"
-    },
-    "platform-dev": []
-}`
-
-	err := os.WriteFile(composerLockPath, []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("创建测试composer.lock文件失败: %v", err)
-	}
-
-	return composerLockPath
-}

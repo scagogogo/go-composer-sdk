@@ -36,20 +36,3 @@ func teardown() {
 // 实际项目中可以根据需要使用真实的utils包或创建一个模拟utils包
 
 // 添加一些辅助函数，方便多个测试文件使用
-
-// createTempDir 创建一个临时目录用于测试
-func createTempDir(t *testing.T) string {
-	dir, err := os.MkdirTemp("", "composer-test-*")
-	if err != nil {
-		t.Fatalf("无法创建临时目录: %v", err)
-	}
-	return dir
-}
-
-// removeTempDir 删除测试用的临时目录
-func removeTempDir(t *testing.T, dir string) {
-	err := os.RemoveAll(dir)
-	if err != nil {
-		t.Errorf("无法清理临时目录 %s: %v", dir, err)
-	}
-}

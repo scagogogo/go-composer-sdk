@@ -250,21 +250,21 @@ func TestRunWithEdgeCases(t *testing.T) {
 
 	// 测试单个空字符串参数
 	SetupMockOutput("", "Empty string arg output", nil)
-	output, err = composer.Run("")
+	_, err = composer.Run("")
 	if err != nil {
 		t.Errorf("空字符串参数Run执行失败: %v", err)
 	}
 
 	// 测试包含空格的参数
 	SetupMockOutput("command with spaces", "Spaced command output", nil)
-	output, err = composer.Run("command", "with", "spaces")
+	_, err = composer.Run("command", "with", "spaces")
 	if err != nil {
 		t.Errorf("包含空格的参数Run执行失败: %v", err)
 	}
 
 	// 测试包含特殊字符的参数
 	SetupMockOutput("command --option=value", "Special chars output", nil)
-	output, err = composer.Run("command", "--option=value")
+	_, err = composer.Run("command", "--option=value")
 	if err != nil {
 		t.Errorf("包含特殊字符的参数Run执行失败: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestRunWithEdgeCases(t *testing.T) {
 	}
 	expectedCmd := strings.Join(args, " ")
 	SetupMockOutput(expectedCmd, "Many args output", nil)
-	output, err = composer.Run(args...)
+	_, err = composer.Run(args...)
 	if err != nil {
 		t.Errorf("大量参数Run执行失败: %v", err)
 	}
