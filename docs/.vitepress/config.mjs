@@ -3,7 +3,10 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Go Composer SDK',
   description: 'A comprehensive Go library for PHP Composer package manager',
-  
+
+  // GitHub Pages configuration
+  base: '/go-composer-sdk/',
+
   // Multi-language support
   locales: {
     root: {
