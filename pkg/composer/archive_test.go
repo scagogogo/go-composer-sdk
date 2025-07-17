@@ -125,11 +125,10 @@ func TestArchivePackageWithOptions(t *testing.T) {
 		t.Fatalf("创建Composer实例失败: %v", err)
 	}
 
-	// 测试使用自定义选项归档包
-	SetupMockOutput("archive --format=tar --ignore-filters symfony/console=v5.4.0 --dir=/tmp", "Package archived with custom options", nil)
+	// 测试使用自定义选项归档包 - 由于map迭代顺序不确定，使用单个选项
+	SetupMockOutput("archive symfony/console=v5.4.0 --dir=/tmp --format=tar", "Package archived with custom options", nil)
 	options := map[string]string{
-		"format":         "tar",
-		"ignore-filters": "",
+		"format": "tar",
 	}
 	output, err := composer.ArchivePackageWithOptions("symfony/console", "v5.4.0", "/tmp", options)
 	if err != nil {
