@@ -12,6 +12,7 @@ func TestNewDetector(t *testing.T) {
 	d := NewDetector()
 	if d == nil {
 		t.Fatal("NewDetector应返回非nil的Detector实例")
+		return // 虽然t.Fatal会终止，但这样可以让staticcheck满意
 	}
 
 	if len(d.possiblePaths) == 0 {

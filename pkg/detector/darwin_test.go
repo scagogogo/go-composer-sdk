@@ -5,7 +5,6 @@ package detector
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -50,11 +49,6 @@ func TestDarwinSpecificPaths(t *testing.T) {
 }
 
 func TestDarwinExecutablePermissions(t *testing.T) {
-	// 只在Darwin系统上测试权限检查
-	if runtime.GOOS != "darwin" {
-		t.Skip("跳过在非Darwin系统上的权限测试")
-	}
-
 	// 创建一个临时文件用于测试
 	tmpDir := t.TempDir()
 	nonExecutableFile := filepath.Join(tmpDir, "non-executable")
