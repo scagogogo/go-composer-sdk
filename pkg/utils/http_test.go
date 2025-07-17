@@ -16,21 +16,21 @@ func TestDownloadFile(t *testing.T) {
 	normalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/success" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Hello, this is test content!"))
+			_, _ = w.Write([]byte("Hello, this is test content!"))
 		} else if r.URL.Path == "/notfound" {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		} else if r.URL.Path == "/servererror" {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal Server Error"))
+			_, _ = w.Write([]byte("Internal Server Error"))
 		} else if r.URL.Path == "/slowresponse" {
 			// 模拟慢响应
 			time.Sleep(300 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("This is a slow response"))
+			_, _ = w.Write([]byte("This is a slow response"))
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Bad Request"))
+			_, _ = w.Write([]byte("Bad Request"))
 		}
 	}))
 	defer normalServer.Close()
