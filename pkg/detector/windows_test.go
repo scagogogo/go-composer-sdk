@@ -5,7 +5,6 @@ package detector
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -34,11 +33,6 @@ func TestWindowsSpecificPaths(t *testing.T) {
 }
 
 func TestWindowsExecutableCheck(t *testing.T) {
-	// 只在 Windows 系统上测试
-	if runtime.GOOS != "windows" {
-		t.Skip("跳过在非Windows系统上的可执行性测试")
-	}
-
 	// 在 Windows 上创建测试文件
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "composer.bat")
